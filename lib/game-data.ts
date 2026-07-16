@@ -1,55 +1,33 @@
-export type Stock = {
-  symbol: string;
-  name: string;
-  sector: string;
-  price: number;
-  color: string;
-  social: number;
-  environment: number;
-  stability: number;
-};
+export type Stock={symbol:string;name:string;sector:string;ownership:string;price:number;color:string;social:number;environment:number;stability:number;volatility:number;liquidity:number;description:string};
+export type Effect=Record<string,number>;
+export type GameCard={id:string;title:string;description:string;lesson:string;effects:Effect;scoreEffects?:{social?:number;environment?:number;stability?:number};tone?:"positive"|"negative"|"mixed";category?:string;responsePolicyIds?:string[]};
 
-export type Effect = Record<string, number>;
-
-export type GameCard = {
-  id: string;
-  title: string;
-  description: string;
-  lesson: string;
-  effects: Effect;
-  scoreEffects?: { social?: number; environment?: number; stability?: number };
-  tone?: "positive" | "negative" | "mixed";
-};
-
-export const INITIAL_STOCKS: Stock[] = [
-  { symbol: "VTC", name: "VietTech", sector: "Công nghệ tư nhân", price: 24, color: "#6d5efc", social: 1, environment: 0, stability: -1 },
-  { symbol: "GRN", name: "GreenPower", sector: "Năng lượng xanh", price: 18, color: "#31c48d", social: 1, environment: 3, stability: 1 },
-  { symbol: "FOS", name: "Fossil Energy", sector: "Năng lượng hóa thạch", price: 22, color: "#f97352", social: 1, environment: -3, stability: 1 },
-  { symbol: "MED", name: "MediCare", sector: "Y tế", price: 20, color: "#e84c88", social: 3, environment: 0, stability: 2 },
-  { symbol: "AGR", name: "AgriCoop", sector: "HTX nông nghiệp", price: 14, color: "#d4a72c", social: 2, environment: 1, stability: 2 },
-  { symbol: "INF", name: "National Infra", sector: "Hạ tầng", price: 26, color: "#2589bd", social: 2, environment: -1, stability: 3 },
-  { symbol: "BNK", name: "Unity Bank", sector: "Tài chính – ngân hàng", price: 21, color: "#4f70d9", social: 0, environment: 0, stability: 2 },
-  { symbol: "CSM", name: "Nova Consumer", sector: "Tiêu dùng – bán lẻ", price: 16, color: "#e58b2b", social: 1, environment: -1, stability: 0 },
+export const INITIAL_STOCKS:Stock[]=[
+ {symbol:"NOVA",name:"Nova Technology",sector:"Công nghệ",ownership:"Tư nhân",price:24,color:"#8b5cf6",social:1,environment:0,stability:-1,volatility:1.2,liquidity:900,description:"Tăng trưởng cao, nhạy với lãi suất và dữ liệu."},
+ {symbol:"EST8",name:"Estate Eight",sector:"Bất động sản",ownership:"Tư nhân",price:28,color:"#f59e0b",social:0,environment:-1,stability:-2,volatility:1.15,liquidity:800,description:"Hưởng lợi từ tín dụng, rủi ro bong bóng."},
+ {symbol:"GLOB",name:"Global Manufacturing",sector:"Sản xuất xuất khẩu",ownership:"FDI",price:22,color:"#0ea5e9",social:1,environment:-2,stability:0,volatility:.9,liquidity:1100,description:"Nhạy với xuất khẩu và chuỗi cung ứng."},
+ {symbol:"RETX",name:"RetailX",sector:"Bán lẻ số",ownership:"Tư nhân",price:18,color:"#ec4899",social:0,environment:-1,stability:0,volatility:1,liquidity:1000,description:"Hưởng lợi từ tiêu dùng, có rủi ro độc quyền."},
+ {symbol:"GRID",name:"National Grid",sector:"Hạ tầng điện",ownership:"Chiến lược",price:26,color:"#06b6d4",social:2,environment:-1,stability:3,volatility:.55,liquidity:1400,description:"Hạ tầng thiết yếu, ổn định và vốn lớn."},
+ {symbol:"CARE",name:"Community Healthcare",sector:"Y tế",ownership:"Hỗn hợp",price:20,color:"#f43f5e",social:3,environment:0,stability:2,volatility:.65,liquidity:1200,description:"Dịch vụ thiết yếu với tác động xã hội cao."},
+ {symbol:"GREEN",name:"Green Future Energy",sector:"Năng lượng xanh",ownership:"Hỗn hợp",price:17,color:"#22c55e",social:1,environment:3,stability:1,volatility:.9,liquidity:850,description:"Đầu tư dài hạn, hưởng lợi từ chuyển đổi xanh."},
+ {symbol:"COOP",name:"Agri Cooperative",sector:"Nông nghiệp",ownership:"Hợp tác xã",price:14,color:"#84cc16",social:3,environment:1,stability:2,volatility:.5,liquidity:700,description:"Lợi nhuận vừa phải, hỗ trợ an ninh lương thực."},
 ];
 
-export const EVENTS: GameCard[] = [
-  { id: "energy", tone: "negative", title: "Khủng hoảng năng lượng", description: "Giá nhiên liệu tăng, sản xuất chịu áp lực.", lesson: "Thị trường cần khả năng chống chịu và đa dạng nguồn cung.", effects: { FOS: 22, GRN: 10, INF: -8, VTC: -5, CSM: -9 }, scoreEffects: { stability: -6 } },
-  { id: "pandemic", tone: "negative", title: "Dịch bệnh bùng phát", description: "Nhu cầu y tế tăng, chuỗi cung ứng gián đoạn.", lesson: "Y tế là hàng hóa thiết yếu; lợi ích xã hội không thể chỉ đo bằng lợi nhuận.", effects: { MED: 32, AGR: 8, INF: -10, VTC: 6, CSM: -14 }, scoreEffects: { social: -7, stability: -5 } },
-  { id: "bubble", tone: "mixed", title: "Làn sóng đầu cơ công nghệ", description: "Dòng tiền đổ vào công nghệ, rủi ro bong bóng tăng.", lesson: "Thông tin và tâm lý đám đông có thể tạo bong bóng tài sản.", effects: { VTC: 26, BNK: 8, AGR: -7, MED: -5 }, scoreEffects: { stability: -8 } },
-  { id: "pollution", tone: "negative", title: "Cảnh báo ô nhiễm", description: "Chi phí môi trường của tăng trưởng trở nên rõ rệt.", lesson: "Ngoại ứng tiêu cực là khuyết tật thị trường điển hình.", effects: { FOS: -24, GRN: 18, MED: 7, CSM: -5 }, scoreEffects: { environment: -8, social: -3 } },
-  { id: "exports", tone: "positive", title: "Đơn hàng xuất khẩu tăng", description: "Nhu cầu quốc tế phục hồi mạnh.", lesson: "Hội nhập mở ra cơ hội nhưng cũng làm nền kinh tế nhạy với bên ngoài.", effects: { VTC: 14, AGR: 17, CSM: 12, INF: 6 }, scoreEffects: { social: 4, stability: 2 } },
-  { id: "innovation", tone: "positive", title: "Đột phá công nghệ", description: "Năng suất và niềm tin đầu tư cùng cải thiện.", lesson: "Cạnh tranh và lợi nhuận tạo động lực đổi mới sáng tạo.", effects: { VTC: 24, GRN: 10, BNK: 6 }, scoreEffects: { stability: 3 } },
-  { id: "harvest", tone: "positive", title: "Mùa vụ bội thu", description: "Nguồn cung thực phẩm dồi dào, tiêu dùng tăng.", lesson: "Khu vực hợp tác và nông nghiệp góp phần vào an sinh, ổn định.", effects: { AGR: 25, CSM: 10, MED: 3 }, scoreEffects: { social: 7, stability: 5 } },
-  { id: "bankrun", tone: "negative", title: "Khủng hoảng niềm tin ngân hàng", description: "Tin đồn thanh khoản kích hoạt làn sóng rút vốn.", lesson: "Thị trường tài chính có tính lây lan và cần giám sát hệ thống.", effects: { BNK: -30, VTC: -12, INF: -10, CSM: -8 }, scoreEffects: { stability: -14 } },
-  { id: "infrastructure", tone: "positive", title: "Hạ tầng kết nối hoàn thành", description: "Chi phí logistics giảm trên toàn nền kinh tế.", lesson: "Hàng hóa công có thể nâng năng suất của nhiều thành phần kinh tế.", effects: { INF: 22, AGR: 12, CSM: 10, VTC: 6 }, scoreEffects: { social: 5, stability: 7 } },
-  { id: "drought", tone: "negative", title: "Hạn hán kéo dài", description: "Nông nghiệp và thủy điện cùng chịu áp lực.", lesson: "Biến đổi khí hậu tạo chi phí kinh tế và xã hội trên diện rộng.", effects: { AGR: -26, GRN: -8, CSM: 9, MED: 5 }, scoreEffects: { environment: -9, social: -6 } },
-  { id: "confidence", tone: "positive", title: "Niềm tin tiêu dùng phục hồi", description: "Chi tiêu hộ gia đình và tín dụng cùng tăng.", lesson: "Kỳ vọng của các chủ thể ảnh hưởng trực tiếp tới chu kỳ kinh tế.", effects: { CSM: 24, BNK: 12, VTC: 5 }, scoreEffects: { social: 3, stability: 4 } },
-  { id: "supply", tone: "negative", title: "Đứt gãy chuỗi cung ứng", description: "Nguyên liệu khan hiếm, chi phí sản xuất tăng.", lesson: "Hiệu quả ngắn hạn phải được cân bằng với năng lực tự chủ và chống chịu.", effects: { INF: -14, VTC: -12, CSM: -10, AGR: 6, FOS: 8 }, scoreEffects: { stability: -9 } },
+export const POLICIES:GameCard[]=[
+ {id:"subsidy",category:"Ổn định",title:"Trợ giá năng lượng",description:"Giảm áp lực chi phí tức thời nhưng tốn ngân sách.",lesson:"Ổn định ngắn hạn có thể làm chậm chuyển đổi xanh.",effects:{GLOB:14,GRID:10,GREEN:-7,RETX:5},scoreEffects:{social:6,stability:8,environment:-5}},
+ {id:"green_support",category:"Cơ cấu",title:"Hỗ trợ chuyển đổi xanh",description:"Chuyển vốn sang năng lượng sạch, chi phí đầu tư ban đầu cao.",lesson:"Điều chỉnh cơ cấu tạo lợi ích dài hạn nhưng có người chịu chi phí.",effects:{GREEN:24,GRID:6,GLOB:-5},scoreEffects:{environment:14,stability:2}},
+ {id:"tight_credit",category:"Kiềm chế",title:"Siết tín dụng đầu cơ",description:"Hạ nhiệt tài sản, giảm rủi ro hệ thống.",lesson:"Kiềm chế bong bóng có thể làm tăng trưởng ngắn hạn chậm lại.",effects:{EST8:-22,NOVA:-7,GRID:3},scoreEffects:{stability:13,social:5}},
+ {id:"social_housing",category:"Cơ cấu",title:"Đầu tư nhà ở xã hội",description:"Hướng nguồn lực từ đầu cơ sang nhu cầu thực.",lesson:"Chính sách có thể phân bổ lại lợi ích trong cùng một ngành.",effects:{EST8:6,GRID:10,COOP:3},scoreEffects:{social:12,stability:4}},
+ {id:"antitrust",category:"Kiềm chế",title:"Điều tra chống độc quyền",description:"Giảm quyền lực nền tảng, mở cơ hội cho chủ thể nhỏ.",lesson:"Bảo vệ cạnh tranh không đồng nghĩa xóa bỏ thị trường.",effects:{RETX:-18,COOP:15,NOVA:4},scoreEffects:{social:12,stability:5}},
+ {id:"health",category:"Ổn định",title:"Quỹ y tế khẩn cấp",description:"Mở rộng năng lực chăm sóc và hỗ trợ người yếu thế.",lesson:"Dịch vụ công bảo vệ xã hội trước cú sốc.",effects:{CARE:20,GLOB:5,RETX:4},scoreEffects:{social:15,stability:8}},
+ {id:"none",category:"Không can thiệp",title:"Để thị trường tự điều chỉnh",description:"Không tốn ngân sách, chấp nhận biến động và rủi ro xã hội.",lesson:"Không can thiệp cũng là một lựa chọn chính sách có hệ quả.",effects:{},scoreEffects:{stability:-5}},
 ];
 
-export const POLICIES: GameCard[] = [
-  { id: "carbon", title: "Thuế carbon & chuyển đổi xanh", description: "Đánh thuế phát thải, hỗ trợ năng lượng sạch.", lesson: "Nhà nước dùng công cụ kinh tế để định hướng hành vi thị trường.", effects: { FOS: -20, GRN: 30, INF: 5 }, scoreEffects: { environment: 14, stability: -2 } },
-  { id: "welfare", title: "Quỹ y tế & an sinh", description: "Phân phối lại một phần nguồn lực cho dịch vụ thiết yếu.", lesson: "Thành quả tăng trưởng được gắn với tiến bộ và công bằng xã hội.", effects: { MED: 22, AGR: 8, VTC: -4 }, scoreEffects: { social: 15, stability: 4 } },
-  { id: "public", title: "Đầu tư công chiến lược", description: "Nâng hạ tầng và năng lực chống chịu quốc gia.", lesson: "Nhà nước cung cấp hàng hóa công nhưng phải cân nhắc hiệu quả ngân sách.", effects: { INF: 28, AGR: 10, VTC: 6 }, scoreEffects: { social: 6, stability: 12, environment: -3 } },
-  { id: "competition", title: "Luật chống độc quyền", description: "Hạn chế vị thế thống lĩnh, mở cơ hội cho chủ thể nhỏ.", lesson: "Điều tiết nhằm bảo vệ cạnh tranh, không phải xóa bỏ cạnh tranh.", effects: { VTC: -15, AGR: 16, MED: 7 }, scoreEffects: { social: 8, stability: 7 } },
+export const EVENTS:GameCard[]=[
+ {id:"energy",category:"Quốc tế",tone:"negative",title:"Khủng hoảng năng lượng toàn cầu",description:"Giá nhiên liệu và chi phí sản xuất tăng mạnh.",lesson:"Cú sốc đầu vào lan truyền qua nhiều ngành.",effects:{GRID:-6,GLOB:-18,GREEN:20,RETX:-8},scoreEffects:{stability:-9},responsePolicyIds:["subsidy","green_support","none"]},
+ {id:"housing_bubble",category:"Vĩ mô",tone:"mixed",title:"Bong bóng bất động sản",description:"Tín dụng rẻ đẩy giá tài sản lên nhanh hơn thu nhập.",lesson:"Kỳ vọng và đầu cơ có thể làm thị trường rời xa giá trị nền tảng.",effects:{EST8:25,NOVA:8,COOP:-5},scoreEffects:{social:-8,stability:-12},responsePolicyIds:["tight_credit","social_housing","none"]},
+ {id:"platform",category:"Cạnh tranh",tone:"mixed",title:"Nền tảng bán lẻ chiếm lĩnh thị trường",description:"RetailX tăng trưởng mạnh, doanh nghiệp nhỏ mất thị phần.",lesson:"Tích tụ tạo hiệu quả nhưng có thể dẫn tới độc quyền.",effects:{RETX:24,COOP:-14,NOVA:6},scoreEffects:{social:-10,stability:-3},responsePolicyIds:["antitrust","none"]},
+ {id:"pandemic",category:"Xã hội",tone:"negative",title:"Dịch bệnh lan rộng",description:"Y tế quá tải và chuỗi cung ứng bị gián đoạn.",lesson:"Khủng hoảng cho thấy vai trò của hàng hóa thiết yếu.",effects:{CARE:26,RETX:8,GLOB:-18,EST8:-10},scoreEffects:{social:-14,stability:-10},responsePolicyIds:["health","none"]},
+ {id:"exports",category:"Quốc tế",tone:"positive",title:"Đơn hàng xuất khẩu tăng",description:"Nhu cầu quốc tế phục hồi mạnh.",lesson:"Hội nhập tạo cơ hội đồng thời tăng phụ thuộc bên ngoài.",effects:{GLOB:22,GRID:7,NOVA:8,COOP:5},scoreEffects:{social:5,stability:3},responsePolicyIds:["green_support","none"]},
+ {id:"drought",category:"Môi trường",tone:"negative",title:"Hạn hán kéo dài",description:"Nông nghiệp và nguồn điện cùng chịu áp lực.",lesson:"Khí hậu tạo chi phí kinh tế và xã hội diện rộng.",effects:{COOP:-25,GRID:-9,GREEN:7,CARE:4},scoreEffects:{social:-8,environment:-10,stability:-7},responsePolicyIds:["green_support","subsidy","none"]},
 ];

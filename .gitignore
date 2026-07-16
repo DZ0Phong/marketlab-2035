@@ -4,3 +4,5 @@ out
 .env*.local
 .vercel
 npm-debug.log*
+work/
+*.tsbuildinfo

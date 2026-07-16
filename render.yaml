@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: marketlab-2035
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.16.0
+      - key: HOST_SECRET
+        generateValue: true
