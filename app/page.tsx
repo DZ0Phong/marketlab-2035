@@ -278,6 +278,57 @@ export default function Home() {
         <p>Đang đồng bộ phòng…</p>
       </main>
     );
+  if (mode === "HOST" && room.phase === "LOBBY")
+    return (
+      <main className="lobby-shell">
+        <LobbyHeader room={room} online={online} host />
+        <section className="lobby-stage">
+          <section className="join-stage-card">
+            <p className="kicker">SẴN SÀNG THAM GIA</p>
+            <h1>
+              Quét mã hoặc
+              <br />
+              nhập phòng.
+            </h1>
+            <p>
+              Người chơi vào trang chính, nhập mã phòng và chọn đúng nhóm của
+              mình. Thị trường vẫn khóa cho tới khi bạn mở phần hướng dẫn.
+            </p>
+            <div className="lobby-code">
+              <span>MÃ PHÒNG</span>
+              <strong>{room.code}</strong>
+            </div>
+            <div className="lobby-steps">
+              <span>
+                <b>01</b> Vào nhóm
+              </span>
+              <span>
+                <b>02</b> Đọc luật
+              </span>
+              <span>
+                <b>03</b> Mở thị trường
+              </span>
+            </div>
+          </section>
+          <TeamLobbyCard leaderboard={leaderboard} />
+        </section>
+        <footer className="lobby-actionbar">
+          <p>
+            <b>Gợi ý:</b> chờ các đội vào đủ, sau đó chiếu nhanh cách chọn mã và
+            đặt lệnh.
+          </p>
+          <div>
+            <button className="quiet-action" onClick={() => hostCmd("BOT")}>
+              Điền bot cho đội vắng
+            </button>
+            <button className="open-market" onClick={() => hostCmd("START")}>
+              Mở phần hướng dẫn →
+            </button>
+          </div>
+        </footer>
+        {error && <Toast text={error} />}
+      </main>
+    );
   if (mode === "HOST")
     return (
       <main className="terminal">
@@ -400,6 +451,46 @@ export default function Home() {
             </section>
           </aside>
         </section>
+        {error && <Toast text={error} />}
+      </main>
+    );
+  if (["LOBBY", "ORIENTATION"].includes(room.phase))
+    return (
+      <main className="lobby-shell player-waiting-shell">
+        <LobbyHeader room={room} online={online} />
+        <section className="player-wait-stage">
+          <div className="waiting-mark">↗</div>
+          <div>
+            <p className="kicker">ĐÃ VÀO PHÒNG {room.code}</p>
+            <h1>
+              {room.phase === "LOBBY"
+                ? "Chờ Host mở phần hướng dẫn"
+                : "Host đang giới thiệu cách chơi"}
+            </h1>
+            <p>
+              Giữ màn hình này. Khi thị trường được mở, tài khoản, biểu đồ nến
+              và bảng đặt lệnh của đội sẽ tự xuất hiện.
+            </p>
+            <div className="my-team-chip">
+              <span>ĐỘI CỦA BẠN</span>
+              <b>{team?.name || `Nhóm ${teamNumber}`}</b>
+              <small>
+                {team?.members
+                  .filter((member) => member.online)
+                  .map((member) => member.name)
+                  .join(" · ") || "Đang đồng bộ thành viên"}
+              </small>
+            </div>
+          </div>
+        </section>
+        <footer className="lobby-actionbar player-wait-footer">
+          <p>Giá chưa chạy và chưa thể giao dịch trong lúc chờ.</p>
+          <div className="wait-rule-list">
+            <span>01 Theo dõi biến cố</span>
+            <span>02 Chọn ngành</span>
+            <span>03 Quản lý rủi ro</span>
+          </div>
+        </footer>
         {error && <Toast text={error} />}
       </main>
     );
@@ -537,6 +628,66 @@ function Brand() {
       <b>MARKETLAB</b>
       <span>2035</span>
     </div>
+  );
+}
+function LobbyHeader({
+  room,
+  online,
+  host = false,
+}: {
+  room: any;
+  online: boolean;
+  host?: boolean;
+}) {
+  return (
+    <header className="lobby-topbar">
+      <Brand />
+      <div className="lobby-topbar-meta">
+        <span className="room-chip">
+          <small>PHÒNG</small>
+          <b>{room.code}</b>
+        </span>
+        {host && <span className="host-chip">MÀN ĐIỀU PHỐI</span>}
+        <span className={online ? "connection on" : "connection"}>
+          {online ? "KẾT NỐI ỔN ĐỊNH" : "ĐANG KẾT NỐI"}
+        </span>
+      </div>
+    </header>
+  );
+}
+function TeamLobbyCard({ leaderboard }: { leaderboard: any[] }) {
+  const joined = leaderboard.reduce((sum, team) => sum + team.online, 0);
+  return (
+    <section className="team-lobby-card">
+      <div className="lobby-card-heading">
+        <div>
+          <p className="kicker">DANH SÁCH THAM GIA</p>
+          <h2>8 đội trên sàn</h2>
+        </div>
+        <span>
+          <b>{joined}</b> / 16 người
+        </span>
+      </div>
+      <div className="team-lobby-grid">
+        {leaderboard.map((team: any, index: number) => (
+          <article
+            className={team.online ? "lobby-team joined" : "lobby-team"}
+            key={team.name}
+          >
+            <i>{String(index + 1).padStart(2, "0")}</i>
+            <div>
+              <b>{team.name}</b>
+              <small>
+                {team.members.length
+                  ? team.members.join(" · ")
+                  : "Chưa có người chơi"}
+              </small>
+            </div>
+            <em>{team.online}/2</em>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 function Top({
