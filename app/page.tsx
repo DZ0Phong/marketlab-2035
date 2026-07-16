@@ -367,7 +367,7 @@ export default function Home() {
                         : "Chưa có người tham gia"}
                     </small>
                   </span>
-                  <b className={t.online ? "green" : ""}>{t.online}/7</b>
+                  <b className={t.online ? "green" : ""}>{t.online}/2</b>
                 </div>
               ))}
             </section>

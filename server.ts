@@ -106,8 +106,8 @@ io.on("connection", (socket) => {
     const team = room.teams.find((t) => t.number === input.data.teamNumber);
     if (!team || team.number === 7)
       return done({ ok: false, error: "Đội này không thể tham gia." });
-    if (team.members.length >= 7)
-      return done({ ok: false, error: "Đội đã đủ 7 người." });
+    if (team.members.length >= 2)
+      return done({ ok: false, error: "Đội đã đủ 2 người." });
     team.members.push({ id: socket.id, name: input.data.name, online: true });
     socket.join(room.code);
     socket.join(`${room.code}:team:${team.number}`);
