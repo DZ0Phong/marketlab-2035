@@ -44,7 +44,11 @@ export default function Home() {
     [selected, setSelected] = useState("NOVA"),
     [qty, setQty] = useState(1),
     [side, setSide] = useState<"BUY" | "SELL">("BUY"),
-    [now, setNow] = useState(Date.now());
+    [now, setNow] = useState(Date.now()),
+    [savedHost, setSavedHost] = useState<{
+      roomCode: string;
+      hostToken: string;
+    } | null>(null);
   useEffect(() => {
     const s = io({ transports: ["websocket", "polling"] });
     setSocket(s);
@@ -53,20 +57,11 @@ export default function Home() {
       if (location.pathname.startsWith("/host")) {
         const saved = sessionStorage.getItem("host");
         if (saved) {
-          const session = JSON.parse(saved);
-          s.emit(
-            "host:join",
-            { roomCode: session.roomCode, hostToken: session.hostToken },
-            (result: any) => {
-              if (result?.ok) {
-                setRoomCode(session.roomCode);
-                setHostToken(session.hostToken);
-                setMode("HOST");
-              } else {
-                sessionStorage.removeItem("host");
-              }
-            },
-          );
+          try {
+            setSavedHost(JSON.parse(saved));
+          } catch {
+            sessionStorage.removeItem("host");
+          }
         }
       }
     });
@@ -130,12 +125,25 @@ export default function Home() {
         setRoomCode(r.roomCode);
         setHostToken(r.hostToken);
         sessionStorage.setItem("host", JSON.stringify(r));
+        setSavedHost({ roomCode: r.roomCode, hostToken: r.hostToken });
         setMode("HOST");
       },
     );
   }
   function join() {
     ack("player:join", { roomCode, name, teamNumber }, () => setMode("PLAYER"));
+  }
+  function resumeHost() {
+    if (!savedHost) return;
+    ack("host:join", savedHost, (result) => {
+      setRoomCode(result.roomCode || savedHost.roomCode);
+      setHostToken(savedHost.hostToken);
+      setMode("HOST");
+    });
+  }
+  function forgetHost() {
+    sessionStorage.removeItem("host");
+    setSavedHost(null);
   }
   function hostCmd(command: string, value?: string) {
     ack("host:command", { command, value });
@@ -198,7 +206,7 @@ export default function Home() {
                     value={roomCode}
                     onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
                     placeholder="ABCD"
-                    maxLength={4}
+                    maxLength={5}
                   />
                 </label>
                 <label>
@@ -216,7 +224,7 @@ export default function Home() {
                 </label>
                 <button
                   className="cta"
-                  disabled={!name || roomCode.length < 4}
+                  disabled={!name || roomCode.length < 5}
                   onClick={join}
                 >
                   Tham gia phòng
@@ -232,9 +240,26 @@ export default function Home() {
                   Tạo phòng mới, chiếu mã phòng lên màn hình và điều phối toàn
                   bộ diễn biến thị trường.
                 </p>
-                <button className="cta" onClick={createRoom}>
+                <button
+                  className="cta"
+                  disabled={!name.trim()}
+                  onClick={createRoom}
+                >
                   Tạo phòng thuyết trình
                 </button>
+                {savedHost && (
+                  <div className="resume-host">
+                    <span>
+                      Đang có phòng cũ: <b>{savedHost.roomCode}</b>
+                    </span>
+                    <button type="button" onClick={resumeHost}>
+                      Khôi phục phòng cũ
+                    </button>
+                    <button type="button" onClick={forgetHost}>
+                      Bỏ phiên cũ
+                    </button>
+                  </div>
+                )}
                 <div className="host-link">
                   <Link href="/">← Về trang người chơi</Link>
                 </div>
@@ -342,7 +367,7 @@ export default function Home() {
                         : "Chưa có người tham gia"}
                     </small>
                   </span>
-                  <b className={t.online ? "green" : ""}>{t.online}/2</b>
+                  <b className={t.online ? "green" : ""}>{t.online}/7</b>
                 </div>
               ))}
             </section>
@@ -560,11 +585,7 @@ function MarketBoard({
           </div>
           <strong>{fmt(room.prices[selected])} ML$</strong>
         </div>
-        <PriceChart
-          values={(room.history[selected] || [])
-            .map((x: any) => x.price)
-            .concat(room.prices[selected])}
-        />
+        <PriceChart candles={room.history[selected] || []} />
       </div>
       <div className="watch">
         <div className="watch-title">THỊ TRƯỜNG</div>
@@ -596,30 +617,59 @@ function MarketBoard({
     </section>
   );
 }
-function PriceChart({ values }: { values: number[] }) {
-  const a = values.length < 2 ? [values[0] || 0, values[0] || 0] : values,
-    min = Math.min(...a),
-    max = Math.max(...a),
-    pts = a
-      .map(
-        (v, i) =>
-          `${(i / (a.length - 1)) * 800},${220 - ((v - min) / (max - min || 1)) * 180}`,
-      )
-      .join(" ");
+function PriceChart({ candles }: { candles: any[] }) {
+  const data = candles.slice(-30);
+  const values = data.flatMap((c) => [c.low, c.high]);
+  const min = values.length ? Math.min(...values) : 0;
+  const max = values.length ? Math.max(...values) : 1;
+  const y = (value: number) => 220 - ((value - min) / (max - min || 1)) * 180;
+  const xGap = 740 / Math.max(data.length, 1);
   return (
-    <svg viewBox="0 0 800 250" className="price-chart">
-      <defs>
-        <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#a3e635" stopOpacity=".32" />
-          <stop offset="1" stopColor="#a3e635" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polyline
-        points={`${pts} 800,250 0,250`}
-        fill="url(#area)"
-        stroke="none"
-      />
-      <polyline points={pts} fill="none" stroke="#a3e635" strokeWidth="3" />
+    <svg
+      viewBox="0 0 800 250"
+      className="price-chart candle-chart"
+      aria-label="Biểu đồ nến, mỗi nến tương ứng năm giây"
+    >
+      {[70, 115, 160, 205].map((line) => (
+        <line
+          key={line}
+          x1="30"
+          x2="770"
+          y1={line}
+          y2={line}
+          className="chart-grid"
+        />
+      ))}
+      {data.map((c, index) => {
+        const x = 30 + index * xGap + xGap / 2;
+        const rising = c.close >= c.open;
+        const color = rising ? "#2c8a45" : "#d14b5e";
+        const bodyTop = Math.min(y(c.open), y(c.close));
+        const bodyHeight = Math.max(3, Math.abs(y(c.open) - y(c.close)));
+        return (
+          <g key={`${c.time}-${index}`}>
+            <line
+              x1={x}
+              x2={x}
+              y1={y(c.high)}
+              y2={y(c.low)}
+              stroke={color}
+              strokeWidth="2"
+            />
+            <rect
+              x={x - Math.min(8, xGap * 0.32)}
+              y={bodyTop}
+              width={Math.min(16, xGap * 0.64)}
+              height={bodyHeight}
+              fill={color}
+              rx="1"
+            />
+          </g>
+        );
+      })}
+      <text x="30" y="242" className="candle-caption">
+        NẾN 5 GIÂY · GIÁ CẬP NHẬT THEO PHIÊN
+      </text>
     </svg>
   );
 }

@@ -361,6 +361,46 @@ body {
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
+.resume-host {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid #d7e3d8;
+  border-radius: 12px;
+  background: #f5f9f3;
+  color: #516158;
+  font-size: 0.82rem;
+}
+.resume-host button {
+  border: 0;
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: #e4eee0;
+  color: #315f16;
+  font-weight: 800;
+}
+.resume-host button:last-child {
+  background: transparent;
+  color: #9a5160;
+}
+.candle-chart {
+  display: block;
+  width: 100%;
+  min-height: 250px;
+  background: linear-gradient(180deg, #ffffff, #f8fbf7);
+}
+.candle-chart .chart-grid {
+  stroke: #e0e9e1;
+  stroke-dasharray: 3 6;
+}
+.candle-caption {
+  fill: #718176;
+  font:
+    700 10px Manrope,
+    sans-serif;
+  letter-spacing: 0.12em;
+}
 
 @media (max-width: 900px) {
   html {

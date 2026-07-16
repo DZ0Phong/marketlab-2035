@@ -46,10 +46,15 @@ io.on("connection", (socket) => {
       .safeParse(raw);
     if (!input.success)
       return done({ ok: false, error: "Thông tin tạo phòng không hợp lệ." });
-    const room = GameEngine.createRoom(
+    let room = GameEngine.createRoom(
       input.data.hostName,
       input.data.startingCash,
     );
+    while (rooms.has(room.code))
+      room = GameEngine.createRoom(
+        input.data.hostName,
+        input.data.startingCash,
+      );
     rooms.set(room.code, room);
     socket.join(room.code);
     socket.data = {
@@ -101,8 +106,8 @@ io.on("connection", (socket) => {
     const team = room.teams.find((t) => t.number === input.data.teamNumber);
     if (!team || team.number === 7)
       return done({ ok: false, error: "Đội này không thể tham gia." });
-    if (team.members.length >= 2)
-      return done({ ok: false, error: "Đội đã đủ 2 người." });
+    if (team.members.length >= 7)
+      return done({ ok: false, error: "Đội đã đủ 7 người." });
     team.members.push({ id: socket.id, name: input.data.name, online: true });
     socket.join(room.code);
     socket.join(`${room.code}:team:${team.number}`);

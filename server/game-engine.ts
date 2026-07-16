@@ -22,6 +22,13 @@ export type Team = {
   votes: Record<string, string>;
   initialCash: number;
 };
+export type MarketCandle = {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+};
 export type Room = {
   code: string;
   hostToken: string;
@@ -34,7 +41,7 @@ export type Room = {
   teams: Team[];
   prices: Record<string, number>;
   openPrices: Record<string, number>;
-  history: Record<string, { time: number; price: number }[]>;
+  history: Record<string, MarketCandle[]>;
   orderFlow: Record<string, number>;
   eventIndex: number;
   activeEventId?: string;
@@ -45,6 +52,7 @@ export type Room = {
 };
 
 const playerTeams = [1, 2, 3, 4, 5, 6, 8, 9];
+const roomCharacters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const phaseDuration: Partial<Record<Phase, number>> = {
   ORIENTATION: 60,
   CALM: 45,
@@ -57,22 +65,36 @@ const phaseDuration: Partial<Record<Phase, number>> = {
 const clamp = (n: number, min: number, max: number) =>
   Math.max(min, Math.min(max, n));
 
-function seedMarketHistory(symbol: string, basePrice: number) {
+function seedMarketHistory(symbol: string, basePrice: number): MarketCandle[] {
   const seed = symbol
     .split("")
     .reduce((sum, char) => sum + char.charCodeAt(0), 0);
   let price = basePrice;
   return Array.from({ length: 30 }, (_, index) => {
+    const open = price;
     const wave = Math.sin(index * 0.72 + seed) * 0.0045;
     const microTrend = Math.cos(index * 0.27 + seed / 3) * 0.0025;
     price = Math.max(100, Math.round(price * (1 + wave + microTrend)));
-    return { time: Date.now() - (29 - index) * 5_000, price };
+    const wick = Math.max(
+      8,
+      Math.round(open * (0.0018 + Math.abs(wave) * 0.35)),
+    );
+    return {
+      time: Date.now() - (29 - index) * 5_000,
+      open,
+      high: Math.max(open, price) + wick,
+      low: Math.max(100, Math.min(open, price) - wick),
+      close: price,
+    };
   });
 }
 
 export class GameEngine {
   static createRoom(hostName: string, startingCash: number): Room {
-    const code = Math.random().toString(36).slice(2, 6).toUpperCase();
+    const code = Array.from(
+      { length: 5 },
+      () => roomCharacters[Math.floor(Math.random() * roomCharacters.length)],
+    ).join("");
     const history = Object.fromEntries(
       INITIAL_STOCKS.map((stock) => [
         stock.symbol,
@@ -82,7 +104,7 @@ export class GameEngine {
     const prices = Object.fromEntries(
       INITIAL_STOCKS.map((stock) => [
         stock.symbol,
-        history[stock.symbol].at(-1)!.price,
+        history[stock.symbol].at(-1)!.close,
       ]),
     );
     return {
@@ -226,13 +248,19 @@ export class GameEngine {
           ? (policy?.effects[stock.symbol] || 0) / 100 / 8
           : 0;
       const move = clamp(noise + flow + eventMove + policyMove, -0.06, 0.06);
-      room.prices[stock.symbol] = Math.max(
-        100,
-        Math.round(room.prices[stock.symbol] * (1 + move)),
+      const open = room.prices[stock.symbol];
+      const close = Math.max(100, Math.round(open * (1 + move)));
+      const wick = Math.max(
+        8,
+        Math.round(open * (0.0015 + Math.abs(move) * 0.22)),
       );
+      room.prices[stock.symbol] = close;
       room.history[stock.symbol].push({
         time: Date.now(),
-        price: room.prices[stock.symbol],
+        open,
+        high: Math.max(open, close) + wick,
+        low: Math.max(100, Math.min(open, close) - wick),
+        close,
       });
       room.history[stock.symbol] = room.history[stock.symbol].slice(-120);
       room.orderFlow[stock.symbol] = 0;
