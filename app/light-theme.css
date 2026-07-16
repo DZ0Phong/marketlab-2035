@@ -38,6 +38,15 @@ body {
 .phase b {
   color: #487c0d !important;
 }
+.phase {
+  gap: 10px;
+}
+.phase small {
+  color: #63806c;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
 .intro > p:not(.kicker),
 .pill-row span,
 .landing footer {
@@ -272,6 +281,32 @@ body {
   border-radius: 22px;
   background: linear-gradient(120deg, #f7fbf4 0%, #ffffff 54%, #eef6e9 100%);
   box-shadow: 0 14px 38px rgba(31, 67, 42, 0.09);
+}
+
+.event-panel {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+.event-panel > div {
+  border-left: 4px solid #c8dc76;
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: #f7fbf2;
+}
+.event-panel > div.negative {
+  border-left-color: #df6d6d;
+  background: #fff6f4;
+}
+.event-panel > div.mixed {
+  border-left-color: #e3a541;
+  background: #fffaf0;
+}
+.event-panel > div.positive {
+  border-left-color: #4f9a5f;
+  background: #f1fbf3;
+}
+.event-panel > div > span {
+  color: #607780;
 }
 .room-code-block,
 .event-clock {

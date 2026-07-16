@@ -21,7 +21,7 @@ const phaseLabel: Record<string, string> = {
   CALM: "Thị trường bình thường",
   ANNOUNCEMENT: "Công bố biến cố",
   MARKET_REACTION: "Thị trường phản ứng",
-  POLICY_DECISION: "Quyết định chính sách",
+  POLICY_DECISION: "Bỏ phiếu chính sách",
   POLICY_REACTION: "Phản ứng sau chính sách",
   RESOLUTION: "Tổng kết chu kỳ",
   PAUSED: "Tạm dừng",
@@ -78,6 +78,13 @@ export default function Home() {
     0,
     Math.ceil(((room?.phaseEndsAt || now) - now) / 1000),
   );
+  const nextEventRemaining = Math.max(
+    0,
+    Math.ceil(((room?.nextEventAt || now) - now) / 1000),
+  );
+  const countdown = room?.phase === "CALM" ? nextEventRemaining : remaining;
+  const countdownLabel =
+    room?.phase === "CALM" ? "SỰ KIỆN SAU" : "PHASE CÒN LẠI";
   const stock = room?.stocks?.find((s: any) => s.symbol === selected);
   const price = room?.prices?.[selected] || 0;
   const netWorth = team
@@ -87,15 +94,18 @@ export default function Home() {
         0,
       )
     : 0;
-  const currentEvent = room?.events?.find(
-      (e: any) => e.id === room.activeEventId,
-    ),
+  const currentEvents =
+      room?.events?.filter((e: any) => room.activeEventIds?.includes(e.id)) ||
+      [],
+    currentEvent = currentEvents[0],
     currentPolicy = room?.policies?.find(
       (p: any) => p.id === room.activePolicyId,
     );
   const policyOptions =
     room?.policies?.filter((p: any) =>
-      currentEvent?.responsePolicyIds?.includes(p.id),
+      currentEvents.some((event: any) =>
+        event.responsePolicyIds?.includes(p.id),
+      ),
     ) || [];
   const leaderboard = useMemo(
     () =>
@@ -292,7 +302,7 @@ export default function Home() {
             </h1>
             <p>
               Người chơi vào trang chính, nhập mã phòng và chọn đúng nhóm của
-              mình. Thị trường vẫn khóa cho tới khi bạn mở phần hướng dẫn.
+              mình. Thị trường sẽ chạy liên tục ngay khi Host mở sàn.
             </p>
             <div className="lobby-code">
               <span>MÃ PHÒNG</span>
@@ -303,7 +313,7 @@ export default function Home() {
                 <b>01</b> Vào nhóm
               </span>
               <span>
-                <b>02</b> Đọc luật
+                <b>02</b> Giá chạy mỗi giây
               </span>
               <span>
                 <b>03</b> Mở thị trường
@@ -314,15 +324,15 @@ export default function Home() {
         </section>
         <footer className="lobby-actionbar">
           <p>
-            <b>Gợi ý:</b> chờ các đội vào đủ, sau đó chiếu nhanh cách chọn mã và
-            đặt lệnh.
+            <b>Luật nhanh:</b> giá cập nhật mỗi giây; nến 3 giây; biến cố 1–3
+            tin sẽ tự tới sau mỗi 2 phút.
           </p>
           <div>
             <button className="quiet-action" onClick={() => hostCmd("BOT")}>
               Điền bot cho đội vắng
             </button>
             <button className="open-market" onClick={() => hostCmd("START")}>
-              Mở phần hướng dẫn →
+              Mở thị trường →
             </button>
           </div>
         </footer>
@@ -332,7 +342,12 @@ export default function Home() {
   if (mode === "HOST")
     return (
       <main className="terminal">
-        <Top room={room} remaining={remaining} online={online} />
+        <Top
+          room={room}
+          remaining={countdown}
+          label={countdownLabel}
+          online={online}
+        />
         <section className="host-event-banner">
           <div className="room-code-block">
             <span>MÃ PHÒNG</span>
@@ -346,7 +361,7 @@ export default function Home() {
             <h1>{currentEvent?.title || phaseLabel[room.phase]}</h1>
             <p>
               {currentEvent?.description ||
-                "Tạo đội, kiểm tra người tham gia rồi mở phần hướng dẫn."}
+                "Giá cập nhật mỗi giây. Sự kiện sẽ tự mở sau mỗi hai phút."}
             </p>
           </div>
           <div className="event-clock">
@@ -365,15 +380,15 @@ export default function Home() {
               <p className="kicker">ĐIỀU KHIỂN PHIÊN</p>
               <h2>{phaseLabel[room.phase]}</h2>
               <p className="control-help">
-                Các phase tự chuyển khi hết giờ. Chỉ dùng các nút dưới đây khi
-                cần điều khiển thủ công.
+                Thị trường tự chạy. Chỉ dùng điều khiển bên dưới để tạm dừng,
+                kiểm thử biến cố hoặc kết thúc phiên.
               </p>
               <div className="host-buttons">
                 <button
                   onClick={() => hostCmd("START")}
                   disabled={room.phase !== "LOBBY"}
                 >
-                  Mở phần hướng dẫn
+                  Mở thị trường
                 </button>
                 <button
                   onClick={() =>
@@ -384,8 +399,11 @@ export default function Home() {
                     ? "Mở lại thị trường"
                     : "Tạm khóa giao dịch"}
                 </button>
-                <button onClick={() => hostCmd("NEXT")}>
-                  Tiếp tục bước kế →
+                <button
+                  onClick={() => hostCmd("NEXT")}
+                  disabled={room.phase !== "CALM"}
+                >
+                  Mở biến cố ngay (test)
                 </button>
                 <button
                   onClick={() => hostCmd("BOT")}
@@ -403,7 +421,7 @@ export default function Home() {
               selected={selected}
               setSelected={setSelected}
             />
-            <EventPanel event={currentEvent} policy={currentPolicy} />
+            <EventPanel events={currentEvents} policy={currentPolicy} />
           </div>
           <aside>
             <section className="side-card">
@@ -464,7 +482,7 @@ export default function Home() {
             <p className="kicker">ĐÃ VÀO PHÒNG {room.code}</p>
             <h1>
               {room.phase === "LOBBY"
-                ? "Chờ Host mở phần hướng dẫn"
+                ? "Chờ Host mở thị trường"
                 : "Host đang giới thiệu cách chơi"}
             </h1>
             <p>
@@ -496,7 +514,12 @@ export default function Home() {
     );
   return (
     <main className="terminal">
-      <Top room={room} remaining={remaining} online={online} />
+      <Top
+        room={room}
+        remaining={countdown}
+        label={countdownLabel}
+        online={online}
+      />
       <section className="player-head">
         <div>
           <p className="kicker">{currentEvent?.category || "MARKETLAB LIVE"}</p>
@@ -515,12 +538,12 @@ export default function Home() {
       </section>
       <section className="trade-layout">
         <div>
+          <EventPanel events={currentEvents} policy={currentPolicy} />
           <MarketBoard
             room={room}
             selected={selected}
             setSelected={setSelected}
           />
-          <EventPanel event={currentEvent} policy={currentPolicy} />
           {room.phase === "POLICY_DECISION" && (
             <section className="vote-panel">
               <p className="kicker">MỖI ĐỘI MỘT PHIẾU</p>
@@ -693,10 +716,12 @@ function TeamLobbyCard({ leaderboard }: { leaderboard: any[] }) {
 function Top({
   room,
   remaining,
+  label,
   online,
 }: {
   room: any;
   remaining: number;
+  label: string;
   online: boolean;
 }) {
   return (
@@ -704,6 +729,7 @@ function Top({
       <Brand />
       <div className="phase">
         <span>{phaseLabel[room.phase]}</span>
+        <small>{label}</small>
         <b>
           {String(Math.floor(remaining / 60)).padStart(2, "0")}:
           {String(remaining % 60).padStart(2, "0")}
@@ -779,7 +805,7 @@ function PriceChart({ candles }: { candles: any[] }) {
     <svg
       viewBox="0 0 800 250"
       className="price-chart candle-chart"
-      aria-label="Biểu đồ nến, mỗi nến tương ứng năm giây"
+      aria-label="Biểu đồ nến realtime, mỗi nến tương ứng ba giây"
     >
       {[70, 115, 160, 205].map((line) => (
         <line
@@ -819,20 +845,22 @@ function PriceChart({ candles }: { candles: any[] }) {
         );
       })}
       <text x="30" y="242" className="candle-caption">
-        NẾN 5 GIÂY · GIÁ CẬP NHẬT THEO PHIÊN
+        NẾN 3 GIÂY · GIÁ CẬP NHẬT MỖI GIÂY
       </text>
     </svg>
   );
 }
-function EventPanel({ event, policy }: { event: any; policy: any }) {
-  if (!event && !policy) return null;
+function EventPanel({ events, policy }: { events: any[]; policy: any }) {
+  if (!events.length && !policy) return null;
   return (
     <section className="event-panel">
-      <div>
-        <span>BIẾN CỐ</span>
-        <b>{event?.title}</b>
-        <p>{event?.lesson}</p>
-      </div>
+      {events.map((event) => (
+        <div key={event.id} className={event.tone || "mixed"}>
+          <span>BIẾN CỐ · {event.category}</span>
+          <b>{event.title}</b>
+          <p>{event.lesson}</p>
+        </div>
+      ))}
       {policy && (
         <div>
           <span>CHÍNH SÁCH ĐANG ÁP DỤNG</span>

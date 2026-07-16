@@ -45,7 +45,9 @@ export type Room = {
   orderFlow: Record<string, number>;
   eventIndex: number;
   activeEventId?: string;
+  activeEventIds: string[];
   activePolicyId?: string;
+  nextEventAt: number | null;
   indicators: Record<string, number>;
   usedKeys: Set<string>;
   logs: { time: number; text: string }[];
@@ -53,14 +55,13 @@ export type Room = {
 
 const playerTeams = [1, 2, 3, 4, 5, 6, 8, 9];
 const roomCharacters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+export const MARKET_TICK_MS = 1_000;
+export const CANDLE_INTERVAL_MS = 3_000;
+export const EVENT_INTERVAL_MS = 120_000;
 const phaseDuration: Partial<Record<Phase, number>> = {
-  ORIENTATION: 60,
-  CALM: 45,
-  ANNOUNCEMENT: 12,
-  MARKET_REACTION: 70,
-  POLICY_DECISION: 25,
-  POLICY_REACTION: 50,
-  RESOLUTION: 12,
+  MARKET_REACTION: 45,
+  POLICY_DECISION: 30,
+  POLICY_REACTION: 30,
 };
 const clamp = (n: number, min: number, max: number) =>
   Math.max(min, Math.min(max, n));
@@ -80,7 +81,7 @@ function seedMarketHistory(symbol: string, basePrice: number): MarketCandle[] {
       Math.round(open * (0.0018 + Math.abs(wave) * 0.35)),
     );
     return {
-      time: Date.now() - (29 - index) * 5_000,
+      time: Date.now() - (29 - index) * CANDLE_INTERVAL_MS,
       open,
       high: Math.max(open, price) + wick,
       low: Math.max(100, Math.min(open, price) - wick),
@@ -130,6 +131,8 @@ export class GameEngine {
       history,
       orderFlow: {},
       eventIndex: -1,
+      activeEventIds: [],
+      nextEventAt: null,
       indicators: {
         growth: 50,
         employment: 50,
@@ -152,7 +155,8 @@ export class GameEngine {
   static hostCommand(room: Room, command: string, value?: string) {
     if (command === "START") {
       room.startedAt = Date.now();
-      this.transition(room, "ORIENTATION");
+      room.nextEventAt = Date.now() + EVENT_INTERVAL_MS;
+      this.transition(room, "CALM");
     }
     if (command === "PAUSE" && room.phase !== "PAUSED") {
       room.previousPhase = room.phase;
@@ -162,12 +166,7 @@ export class GameEngine {
       this.transition(room, room.previousPhase || "CALM");
     if (command === "NEXT") this.advance(room);
     if (command === "APPLY_POLICY" && value) {
-      room.activePolicyId = value;
-      this.applyIndicatorEffects(
-        room,
-        POLICIES.find((p) => p.id === value)?.scoreEffects,
-      );
-      this.transition(room, "POLICY_REACTION");
+      this.applyPolicy(room, value);
     }
     if (command === "END") this.transition(room, "ENDED");
     if (command === "RESET") {
@@ -193,44 +192,46 @@ export class GameEngine {
     const next: Record<Phase, Phase> = {
       LOBBY: "ORIENTATION",
       ORIENTATION: "CALM",
-      CALM: "ANNOUNCEMENT",
+      CALM: "MARKET_REACTION",
       ANNOUNCEMENT: "MARKET_REACTION",
       MARKET_REACTION: "POLICY_DECISION",
       POLICY_DECISION: "POLICY_REACTION",
-      POLICY_REACTION: "RESOLUTION",
-      RESOLUTION: "ANNOUNCEMENT",
+      POLICY_REACTION: "CALM",
+      RESOLUTION: "CALM",
       PAUSED: room.previousPhase || "CALM",
       ENDED: "ENDED",
     };
+    if (room.phase === "CALM") return this.startEventRound(room);
+    if (room.phase === "POLICY_DECISION" && !room.activePolicyId)
+      this.applyPolicy(room, this.winningPolicy(room));
     const phase = next[room.phase];
-    if (phase === "ANNOUNCEMENT") {
-      room.eventIndex = (room.eventIndex + 1) % EVENTS.length;
-      room.activeEventId = EVENTS[room.eventIndex].id;
+    if (room.phase === "POLICY_REACTION") {
+      room.activeEventId = undefined;
+      room.activeEventIds = [];
       room.activePolicyId = undefined;
-    }
-    if (room.phase === "POLICY_DECISION" && !room.activePolicyId) {
-      const votes = Object.values(
-        room.teams.flatMap((t) => Object.values(t.votes)),
-      ).filter(Boolean);
-      room.activePolicyId =
-        votes.sort(
-          (a, b) =>
-            votes.filter((x) => x === b).length -
-            votes.filter((x) => x === a).length,
-        )[0] || "none";
+      room.nextEventAt = Date.now() + EVENT_INTERVAL_MS;
     }
     this.transition(room, phase);
   }
   static tick(room: Room) {
     if (room.phaseEndsAt && Date.now() >= room.phaseEndsAt) this.advance(room);
-    if (!["CALM", "MARKET_REACTION", "POLICY_REACTION"].includes(room.phase))
-      return false;
     if (
-      !room.startedAt ||
-      Math.floor((Date.now() - room.startedAt) / 1000) % 5 !== 0
+      room.phase === "CALM" &&
+      room.nextEventAt &&
+      Date.now() >= room.nextEventAt
+    )
+      this.startEventRound(room);
+    if (
+      ![
+        "CALM",
+        "MARKET_REACTION",
+        "POLICY_DECISION",
+        "POLICY_REACTION",
+      ].includes(room.phase)
     )
       return false;
-    const event = EVENTS.find((e) => e.id === room.activeEventId),
+    if (!room.startedAt) return false;
+    const events = EVENTS.filter((e) => room.activeEventIds.includes(e.id)),
       policy = POLICIES.find((p) => p.id === room.activePolicyId);
     for (const stock of INITIAL_STOCKS) {
       const noise = (Math.random() - 0.5) * 0.009 * stock.volatility;
@@ -241,13 +242,20 @@ export class GameEngine {
       );
       const eventMove =
         room.phase === "MARKET_REACTION"
-          ? (event?.effects[stock.symbol] || 0) / 100 / 10
+          ? events.reduce(
+              (sum, event) => sum + (event.effects[stock.symbol] || 0),
+              0,
+            ) /
+            100 /
+            (phaseDuration.MARKET_REACTION || 45)
           : 0;
       const policyMove =
         room.phase === "POLICY_REACTION"
-          ? (policy?.effects[stock.symbol] || 0) / 100 / 8
+          ? (policy?.effects[stock.symbol] || 0) /
+            100 /
+            (phaseDuration.POLICY_REACTION || 30)
           : 0;
-      const move = clamp(noise + flow + eventMove + policyMove, -0.06, 0.06);
+      const move = clamp(noise + flow + eventMove + policyMove, -0.025, 0.025);
       const open = room.prices[stock.symbol];
       const close = Math.max(100, Math.round(open * (1 + move)));
       const wick = Math.max(
@@ -255,13 +263,20 @@ export class GameEngine {
         Math.round(open * (0.0015 + Math.abs(move) * 0.22)),
       );
       room.prices[stock.symbol] = close;
-      room.history[stock.symbol].push({
-        time: Date.now(),
-        open,
-        high: Math.max(open, close) + wick,
-        low: Math.max(100, Math.min(open, close) - wick),
-        close,
-      });
+      const last = room.history[stock.symbol].at(-1);
+      if (last && Date.now() - last.time < CANDLE_INTERVAL_MS) {
+        last.high = Math.max(last.high, close + wick);
+        last.low = Math.min(last.low, Math.max(100, close - wick));
+        last.close = close;
+      } else {
+        room.history[stock.symbol].push({
+          time: Date.now(),
+          open,
+          high: Math.max(open, close) + wick,
+          low: Math.max(100, Math.min(open, close) - wick),
+          close,
+        });
+      }
       room.history[stock.symbol] = room.history[stock.symbol].slice(-120);
       room.orderFlow[stock.symbol] = 0;
     }
@@ -277,7 +292,14 @@ export class GameEngine {
       key: string;
     },
   ) {
-    if (!["CALM", "MARKET_REACTION", "POLICY_REACTION"].includes(room.phase))
+    if (
+      ![
+        "CALM",
+        "MARKET_REACTION",
+        "POLICY_DECISION",
+        "POLICY_REACTION",
+      ].includes(room.phase)
+    )
       return { ok: false, error: "Thị trường đang khóa giao dịch." };
     if (room.usedKeys.has(order.key))
       return { ok: false, error: "Lệnh đã được xử lý." };
@@ -311,8 +333,45 @@ export class GameEngine {
       return { ok: false, error: "Chưa đến lúc bỏ phiếu." };
     const team = room.teams.find((t) => t.number === teamNumber);
     if (!team) return { ok: false };
-    team.votes[room.activeEventId || "event"] = policyId;
+    team.votes[`round-${room.eventIndex}`] = policyId;
     return { ok: true };
+  }
+  static startEventRound(room: Room) {
+    room.eventIndex++;
+    const count = 1 + Math.floor(Math.random() * 3);
+    const pool = [...EVENTS].sort(() => Math.random() - 0.5);
+    const chosen = pool.slice(0, count);
+    room.activeEventIds = chosen.map((event) => event.id);
+    room.activeEventId = room.activeEventIds[0];
+    room.activePolicyId = undefined;
+    room.nextEventAt = null;
+    for (const event of chosen)
+      this.applyIndicatorEffects(room, event.scoreEffects);
+    room.logs.unshift({
+      time: Date.now(),
+      text: `Biến cố đợt ${room.eventIndex + 1}: ${chosen.map((e) => e.title).join(" · ")}`,
+    });
+    this.transition(room, "MARKET_REACTION");
+  }
+  static winningPolicy(room: Room) {
+    const votes = room.teams
+      .map((team) => team.votes[`round-${room.eventIndex}`])
+      .filter(Boolean);
+    return (
+      [...new Set(votes)].sort(
+        (a, b) =>
+          votes.filter((vote) => vote === b).length -
+          votes.filter((vote) => vote === a).length,
+      )[0] || "none"
+    );
+  }
+  static applyPolicy(room: Room, policyId: string) {
+    room.activePolicyId = policyId;
+    this.applyIndicatorEffects(
+      room,
+      POLICIES.find((policy) => policy.id === policyId)?.scoreEffects,
+    );
+    this.transition(room, "POLICY_REACTION");
   }
   static applyIndicatorEffects(
     room: Room,
